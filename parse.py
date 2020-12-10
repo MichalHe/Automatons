@@ -226,17 +226,12 @@ def eval_smt_tree(root,
             return lhs
         elif node_name == 'not':
             assert len(root) == 2
-            operand = eval_smt_tree(root[1], _debug_recursion_depth+1, emit_introspect=emit_introspect, domain=domain)
+            pressburger_automaton = eval_smt_tree(root[1], _debug_recursion_depth+1, emit_introspect=emit_introspect, domain=domain)
 
-            assert type(operand) == NFA
-
-            if operand.automaton_type == AutomatonType.NFA:
-                operand = operand.determinize()
-                _eval_info(f' >> determinize into DFA (result size: {len(operand.states)})', _debug_recursion_depth)
-            operand = operand.complement()
-            _eval_info(f' >> complement(operand) - (result size: {len(operand.states)})', _debug_recursion_depth)
-            emit_introspect(operand, ParsingOperation.NFA_COMPLEMENT)
-            return operand
+            pressburger_automaton.complement()
+            _eval_info(f' >> complement(operand) - (result size: {len(pressburger_automaton.states)})', _debug_recursion_depth)
+            emit_introspect(pressburger_automaton, ParsingOperation.NFA_COMPLEMENT)
+            return pressburger_automaton
         elif node_name == 'exists':
             assert len(root) == 3
             variable_names = get_variable_names_from_bindings(root[1])
@@ -244,7 +239,7 @@ def eval_smt_tree(root,
 
             # TODO: Check whether variables are in fact present in alphabet
             for var in variable_names:
-                nfa = nfa.do_projection(var)
+                nfa.do_projection(var)
 
             _eval_info(f' >> projection({variable_names}) (result_size: {len(nfa.states)})', _debug_recursion_depth)
             emit_introspect(nfa, ParsingOperation.NFA_PROJECTION)
