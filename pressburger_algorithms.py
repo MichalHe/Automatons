@@ -10,6 +10,7 @@ from utils import vector_dot
 from automatons import (
     DFA,
     NFA,
+    PressburgerAutomaton,
     LSBF_Alphabet,
     AutomatonType
 )
@@ -177,7 +178,7 @@ def build_nfa_from_inequality(ineq: Relation) -> NFA[NFA_AutomatonStateType]:
 def build_nfa_from_equality(eq: Relation):
     alphabet = LSBF_Alphabet.from_inequation(eq)
 
-    nfa: NFA[NFA_AutomatonStateType] = NFA(
+    nfa: NFA[NFA_AutomatonStateType] = PressburgerAutomaton(
         alphabet=alphabet,
         automaton_type=AutomatonType.NFA
     )

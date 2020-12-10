@@ -302,7 +302,7 @@ class NFA(Generic[AutomatonState]):
 
             new_nfa.alphabet.active_variables -= set((variable_name, ))
 
-            new_nfa.perform_pad_closure()
+            # new_nfa.perform_pad_closure()
             return new_nfa
 
     def perform_pad_closure(self):
@@ -486,5 +486,90 @@ class NFA(Generic[AutomatonState]):
 
         return nfa
 
+
+class PressburgerAutomaton(NFA[AutomatonState]):
+    def complement(self):
+        alphabet_set = set(self.alphabet.symbols)
+        complement_transition_fn: Transitions = collections.defaultdict(dict)
+        for origin in self.transition_fn:
+            for destination in self.transition_fn:
+                if destination in self.final_states:
+                    complement_set = alphabet_set - self.transition_fn[origin][destination]
+                    complement_transition_fn[origin][destination] = complement_set
+        self.transition_fn = complement_transition_fn
+
+    def fixup_after_union(self):
+        new_final_state = 'q_f'
+        fixed_up_transition_fn: Transitions = collections.defaultdict(lambda: collections.defaultdict(set))
+
+        # Redirect all transitions going to final state to only one final state
+        for origin in self.transition_fn:
+            for destination, symbol_set in self.transition_fn[origin].items():
+                if destination in self.final_states:
+                    fixed_up_transition_fn[origin][new_final_state].update(symbol_set)
+
+        self.states = self.states - self.final_states
+        self.final_states = set(new_final_state)
+        self.transition_fn = fixed_up_transition_fn
+
+    def do_padding_closure(self):
+        final_state = list(self.final_states)[0]
+        work_queue: List[AutomatonState] = list(self.get_states_with_transition_destination(final_state))
+        while work_queue:
+            # Current state has transition to final for sure
+            current_state = work_queue.pop()
+
+            potential_states = self.get_states_with_transition_destination(current_state)
+            for potential_state in potential_states:
+                symbols_from_potential_to_current = self.get_symbols_leading_from_state_to_state(potential_state, current_state)
+                symbols_from_current_to_final = self.get_symbols_leading_from_state_to_state(current_state, final_state)
+
+                intersect = symbols_from_potential_to_current.intersection(symbols_from_current_to_final)
+
+                # Lookup symbols leading from potential state to final to see whether something changed
+                symbols_from_potential_to_final = self.get_symbols_leading_from_state_to_state(potential_state, final_state)
+
+                # (intersect - symbols_from_potential_to_final)  ===> check whether intersect brings any new symbols to transitions P->F
+                if intersect and (intersect - symbols_from_potential_to_final):
+                    # Propagate the finishing ability
+                    if final_state in self.transition_fn[potential_state]:
+                        self.transition_fn[potential_state][final_state].update(intersect)
+                    else:
+                        self.transition_fn[potential_state][final_state] = intersect
+                    # We need to check all states reachable from
+                    # potential_state which became finishing
+
+                    if potential_state not in work_queue and potential_state != current_state:
+                        work_queue.append(potential_state)
+
+    def do_projection(self, variable_name: str) -> Optional[PressburgerAutomaton]:
+        resulting_alphabet_var_count = len(self.alphabet.active_variables) - 1
+
+        if resulting_alphabet_var_count == 0:
+            is_sat, word = self.is_sat()  # Check whether the language is nonempty
+            if is_sat:
+                return NFA.trivial_accepting(self.alphabet)
+            else:
+                return NFA.trivial_nonaccepting(self.alphabet)
+
+        else:
+            # Cross out the projected variable
+            new_nfa: NFA[AutomatonState] = PressburgerAutomaton(
+                alphabet=self.alphabet,
+                automaton_type=AutomatonType.NFA,
+            )
+
+            new_nfa.states = set(self.states)
+            new_nfa.initial_states = set(self.initial_states)
+            new_nfa.final_states = set(self.final_states)
+
+            bit_pos = calculate_variable_bit_position(self.alphabet.variable_names, variable_name)
+            if bit_pos is None:
+                raise ValueError(f'Could not find variable_name "{variable_name}" in current alphabet {self.alphabet}')
+            new_nfa.transition_fn = do_projection(self.transition_fn, bit_pos)
+
+            new_nfa.alphabet.active_variables -= set((variable_name, ))
+
+            return new_nfa
 
 DFA = NFA
