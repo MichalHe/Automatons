@@ -1,5 +1,5 @@
 from __future__ import annotations
-from enum import Enum
+from enum import Enum, IntEnum
 from typing import (
     Set,
     Dict,
@@ -57,7 +57,10 @@ TransitionFn = Dict[AutomatonState,
                     ]]
 
 
-AutomatonType = Enum('AutomatonType', 'DFA NFA')
+class AutomatonType(IntEnum):
+    DFA = 0x01 
+    NFA = 0x02
+    Trivial = 0x04
 
 
 @dataclass
@@ -264,7 +267,7 @@ class NFA(Generic[AutomatonState]):
         else:
             debug_fn = None
 
-        hightest_state, state_name_translation = create_enumeration_state_translation_map(self.states, debug_fn, start_from=0)
+        _, state_name_translation = create_enumeration_state_translation_map(self.states, debug_fn, start_from=0)
 
         def translate(state: AutomatonState) -> int:
             return state_name_translation[state]
@@ -293,19 +296,21 @@ class NFA(Generic[AutomatonState]):
 
     def morph_into_trivial(self, is_accepting: bool):
         if is_accepting:
-            self.states = set(('final',)) 
+            state_name = 'final'
+            self.states = set((state_name,)) 
             self.final_states = set(self.states)
             self.initial_states = set(self.states)
-            state_name = 'final'
         else:
-            self.states = set(('initial',)) 
+            state_name = 'initial'
+            self.states = set((state_name,)) 
             self.final_states = set()
             self.initial_states = set(self.states)
-            state_name = 'initial'
         
-        self_loop_symbol = ['*' for v in self.alphabet.variable_names]
+        self_loop_symbol = tuple(['*' for v in self.alphabet.variable_names])
+        self.transition_fn = collections.defaultdict(lambda: collections.defaultdict(set))
         self.update_transition_fn(state_name, self_loop_symbol, state_name)
         self.alphabet.active_variables = set()
+        self.automaton_type = (self.automaton_type | AutomatonType.Trivial)
 
     def perform_pad_closure(self):
         work_queue = list(self.final_states)
@@ -493,7 +498,15 @@ class PressburgerAutomaton(NFA[AutomatonState]):
     def __init__(self, alphabet: LSBF_Alphabet):
         super().__init__(alphabet=alphabet, automaton_type=AutomatonType.NFA)
 
+    def complement_trivial(self):
+        self.final_states = self.states - self.final_states
+
+
     def complement(self):
+        if (self.automaton_type & AutomatonType.Trivial):
+            self.complement_trivial()
+            return
+
         alphabet_set = set([('*', 0), ('*', 1)])
         full_transition_to_final = set((tuple(['*' for v in self.alphabet.variable_names]), ))
         complement_transition_fn: Transitions = collections.defaultdict(dict)
