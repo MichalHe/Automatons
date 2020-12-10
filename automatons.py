@@ -492,14 +492,26 @@ class NFA(Generic[AutomatonState]):
 class PressburgerAutomaton(NFA[AutomatonState]):
     def __init__(self, alphabet: LSBF_Alphabet):
         super().__init__(alphabet=alphabet, automaton_type=AutomatonType.NFA)
+
     def complement(self):
-        alphabet_set = set(self.alphabet.symbols)
+        alphabet_set = set([('*', 0), ('*', 1)])
+        full_transition_to_final = set((tuple(['*' for v in self.alphabet.variable_names]), ))
         complement_transition_fn: Transitions = collections.defaultdict(dict)
+        contain_transition_to_final = collections.defaultdict(lambda: False)
+        final_state = list(self.final_states)[0]
+
         for origin in self.transition_fn:
-            for destination in self.transition_fn:
+            for destination in self.transition_fn[origin]:
                 if destination in self.final_states:
                     complement_set = alphabet_set - self.transition_fn[origin][destination]
-                    complement_transition_fn[origin][destination] = complement_set
+                    contain_transition_to_final[origin] = True
+                    if complement_set:
+                        complement_transition_fn[origin][destination] = complement_set
+                else:
+                    complement_transition_fn[origin][destination] = self.transition_fn[origin][destination]
+            if not contain_transition_to_final[origin]:
+                complement_transition_fn[origin][final_state] = full_transition_to_final
+
         self.transition_fn = complement_transition_fn
 
     def fixup_after_union(self):
@@ -545,5 +557,9 @@ class PressburgerAutomaton(NFA[AutomatonState]):
 
                     if potential_state not in work_queue and potential_state != current_state:
                         work_queue.append(potential_state)
+
+    def do_projection(self, variable_name: str):
+        super().do_projection(variable_name)
+        self.do_padding_closure()
 
 DFA = NFA
