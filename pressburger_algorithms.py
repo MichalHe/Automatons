@@ -172,7 +172,7 @@ def build_pa_from_inequality(ineq: Relation) -> PressburgerAutomaton[NFA_Automat
     return pa
 
 
-def build_pa_from_equality(eq: Relation) -> PressburgerAutomaton[NFA_AutomatonStateType]:
+def build_pa_from_equality(eq: Relation, add_trapstate:bool = False) -> PressburgerAutomaton[NFA_AutomatonStateType]:
     alphabet = LSBF_Alphabet.from_inequation(eq)
 
     pa: PressburgerAutomaton[NFA_AutomatonStateType] = PressburgerAutomaton(alphabet=alphabet)
@@ -208,7 +208,7 @@ def build_pa_from_equality(eq: Relation) -> PressburgerAutomaton[NFA_AutomatonSt
                     pa.add_state('FINAL')
                     pa.add_final_state('FINAL')
                     pa.update_transition_fn(e_state, symbol, 'FINAL')
-            else:
+            elif add_trapstate:
                 # So the trasition will go to Trap state
                 if not trap_state_present:
                     # Add trapstate to with selfloop over every symbol
