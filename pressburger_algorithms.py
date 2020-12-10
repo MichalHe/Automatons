@@ -142,48 +142,42 @@ def build_dfa_from_sharp_inequality(ineq: Relation) -> DFA:
     return dfa
 
 
-def build_nfa_from_inequality(ineq: Relation) -> NFA[NFA_AutomatonStateType]:
+def build_pa_from_inequality(ineq: Relation) -> NFA[NFA_AutomatonStateType]:
     alphabet = LSBF_Alphabet.from_inequation(ineq)
-    nfa: NFA[NFA_AutomatonStateType] = NFA(
-        alphabet=alphabet,
-        automaton_type=AutomatonType.NFA,
-    )
-    nfa.add_initial_state(ineq.absolute_part)
+    pa: PressburgerAutomaton[NFA_AutomatonStateType] = PressburgerAutomaton(alphabet=alphabet)
+    pa.add_initial_state(ineq.absolute_part)
 
     work_queue: List[int] = [ineq.absolute_part]
 
     while work_queue:
         current_state = work_queue.pop()
-        nfa.add_state(current_state)
+        pa.add_state(current_state)
 
         for alphabet_symbol in alphabet.symbols:
             dot = vector_dot(alphabet_symbol, ineq.variable_coeficients)
             destination_state = math.floor(0.5 * (current_state - dot))
 
-            if not nfa.has_state_with_value(destination_state):
+            if not pa.has_state_with_value(destination_state):
                 work_queue.append(destination_state)
 
-            nfa.update_transition_fn(current_state, alphabet_symbol, destination_state)
+            pa.update_transition_fn(current_state, alphabet_symbol, destination_state)
 
             # Check whether state is final
             if current_state + dot >= 0:
                 final_state = 'FINAL'
-                nfa.add_state(final_state)
-                nfa.add_final_state(final_state)
-                nfa.update_transition_fn(current_state, alphabet_symbol, final_state)
+                pa.add_state(final_state)
+                pa.add_final_state(final_state)
+                pa.update_transition_fn(current_state, alphabet_symbol, final_state)
 
-    return nfa
+    return pa
 
 
-def build_nfa_from_equality(eq: Relation):
+def build_pa_from_equality(eq: Relation):
     alphabet = LSBF_Alphabet.from_inequation(eq)
 
-    nfa: NFA[NFA_AutomatonStateType] = PressburgerAutomaton(
-        alphabet=alphabet,
-        automaton_type=AutomatonType.NFA
-    )
+    pa: PressburgerAutomaton[NFA_AutomatonStateType] = PressburgerAutomaton(alphabet=alphabet)
 
-    nfa.add_initial_state(eq.absolute_part)
+    pa.add_initial_state(eq.absolute_part)
 
     states_to_explore: List[int] = [eq.absolute_part]
 
@@ -191,7 +185,7 @@ def build_nfa_from_equality(eq: Relation):
 
     while states_to_explore:
         e_state = states_to_explore.pop()
-        nfa.add_state(e_state)
+        pa.add_state(e_state)
 
         for symbol in alphabet.symbols:
             dot = vector_dot(symbol, eq.variable_coeficients)
@@ -200,10 +194,10 @@ def build_nfa_from_equality(eq: Relation):
             # Process only even states
             if d_state % 2 == 0:
                 d_state = int(d_state / 2)
-                nfa.update_transition_fn(e_state, symbol, d_state)
+                pa.update_transition_fn(e_state, symbol, d_state)
 
                 # Check whether we already did process this state
-                if not nfa.has_state_with_value(d_state):
+                if not pa.has_state_with_value(d_state):
                     # State might be reachable from multiple locations, this
                     # discovery does not have to be the first one
                     if d_state not in states_to_explore:
@@ -211,21 +205,21 @@ def build_nfa_from_equality(eq: Relation):
 
                 # Check whether current state should have transition to final
                 if e_state + dot == 0:
-                    nfa.add_state('FINAL')
-                    nfa.add_final_state('FINAL')
-                    nfa.update_transition_fn(e_state, symbol, 'FINAL')
+                    pa.add_state('FINAL')
+                    pa.add_final_state('FINAL')
+                    pa.update_transition_fn(e_state, symbol, 'FINAL')
             else:
                 # So the trasition will go to Trap state
                 if not trap_state_present:
                     # Add trapstate to with selfloop over every symbol
-                    nfa.add_state('TRAP')
+                    pa.add_state('TRAP')
                     universal_symbol = tuple(['*' for var in alphabet.variable_names])
-                    nfa.update_transition_fn('TRAP', universal_symbol, 'TRAP')
+                    pa.update_transition_fn('TRAP', universal_symbol, 'TRAP')
                     trap_state_present = True
 
-                nfa.update_transition_fn(e_state, symbol, 'TRAP')
+                pa.update_transition_fn(e_state, symbol, 'TRAP')
 
-    return nfa
+    return pa
 
 
 def create_and_link_prefinal_state(automaton: NFA,
@@ -250,19 +244,16 @@ def create_and_link_prefinal_state(automaton: NFA,
         automaton.update_transition_fn(prefinal_state, fin_symbol, final_state)
 
 
-def build_nfa_from_sharp_inequality(s_ineq: Relation):
+def build_pa_from_sharp_inequality(s_ineq: Relation):
     alphabet = LSBF_Alphabet.from_inequation(s_ineq)
-    nfa: NFA[NFA_AutomatonStateType] = NFA(
-        alphabet=alphabet,
-        automaton_type=AutomatonType.NFA,
-    )
-    nfa.add_initial_state(s_ineq.absolute_part)
+    pa: NFA[NFA_AutomatonStateType] = PressburgerAutomaton(alphabet=alphabet)
+    pa.add_initial_state(s_ineq.absolute_part)
 
     work_queue: List[int] = [s_ineq.absolute_part]
 
     while work_queue:
         current_state = work_queue.pop()
-        nfa.add_state(current_state)
+        pa.add_state(current_state)
 
         final_symbols = []
         self_loop_symbols = []
@@ -271,10 +262,10 @@ def build_nfa_from_sharp_inequality(s_ineq: Relation):
             dot = vector_dot(alphabet_symbol, s_ineq.variable_coeficients)
             destination_state = math.floor(0.5 * (current_state - dot))
 
-            if not nfa.has_state_with_value(destination_state):
+            if not pa.has_state_with_value(destination_state):
                 work_queue.append(destination_state)
 
-            nfa.update_transition_fn(current_state, alphabet_symbol, destination_state)
+            pa.update_transition_fn(current_state, alphabet_symbol, destination_state)
             if current_state == destination_state:
                 self_loop_symbols.append(alphabet_symbol)
 
@@ -293,14 +284,14 @@ def build_nfa_from_sharp_inequality(s_ineq: Relation):
 
             if self_loop_set - final_set:
                 final_state = 'FINAL'
-                nfa.add_state(final_state)
-                nfa.add_final_state(final_state)
+                pa.add_state(final_state)
+                pa.add_final_state(final_state)
 
             # All symbols did lead to final, without selfloop
             # So there is no such symbol which would be accepted by =
             if not eq_set:
                 for symbol in final_set:
-                    nfa.update_transition_fn(current_state, symbol, final_state)
+                    pa.update_transition_fn(current_state, symbol, final_state)
             else:
                 # Otherwise we wanna take only symbols different from those
                 # accepted by =
@@ -308,9 +299,9 @@ def build_nfa_from_sharp_inequality(s_ineq: Relation):
                 # There needs to be at least one such symbol (because all
                 # might have been =
                 if final_state is not None:
-                    create_and_link_prefinal_state(nfa,
+                    create_and_link_prefinal_state(pa,
                                                    current_state,
                                                    self_loop_set,
                                                    final_set,
                                                    final_state)
-    return nfa
+    return pa

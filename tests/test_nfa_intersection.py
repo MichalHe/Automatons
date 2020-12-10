@@ -1,6 +1,6 @@
 import pytest
 from relations_structures import Relation
-from pressburger_algorithms import build_nfa_from_inequality
+from pressburger_algorithms import build_pa_from_inequality
 from typing import Any
 
 
@@ -12,7 +12,7 @@ def nfa1():
         variable_coeficients=[1, -1],
         operation="<="
     )
-    return build_nfa_from_inequality(ineq)
+    return build_pa_from_inequality(ineq)
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def nfa2():
         variable_coeficients=[1, -1],
         operation="<="
     )
-    return build_nfa_from_inequality(ineq)
+    return build_pa_from_inequality(ineq)
 
 
 def are_states_same(state_a, state_b):

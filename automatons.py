@@ -274,36 +274,38 @@ class NFA(Generic[AutomatonState]):
         self.final_states = set(map(translate, self.final_states))
         self.transition_fn = translate_transition_fn_states(self.transition_fn, state_name_translation)
 
-    def do_projection(self, variable_name: str) -> Optional[NFA]:
+    def do_projection(self, variable_name: str):
         resulting_alphabet_var_count = len(self.alphabet.active_variables) - 1
 
         if resulting_alphabet_var_count == 0:
-            is_sat, word = self.is_sat()  # Check whether the language is nonempty
-            if is_sat:
-                return NFA.trivial_accepting(self.alphabet)
-            else:
-                return NFA.trivial_nonaccepting(self.alphabet)
+            # TODO: Fix this -- instead of building new automatons, reduce self
+            is_sat, _ = self.is_sat()  # Check whether the language is nonempty
+            self.morph_into_trivial(is_sat)
 
         else:
             # Cross out the projected variable
-            new_nfa: NFA[AutomatonState] = NFA(
-                alphabet=self.alphabet,
-                automaton_type=AutomatonType.NFA,
-            )
-
-            new_nfa.states = set(self.states)
-            new_nfa.initial_states = set(self.initial_states)
-            new_nfa.final_states = set(self.final_states)
-
             bit_pos = calculate_variable_bit_position(self.alphabet.variable_names, variable_name)
             if bit_pos is None:
                 raise ValueError(f'Could not find variable_name "{variable_name}" in current alphabet {self.alphabet}')
-            new_nfa.transition_fn = do_projection(self.transition_fn, bit_pos)
 
-            new_nfa.alphabet.active_variables -= set((variable_name, ))
+            self.transition_fn = do_projection(self.transition_fn, bit_pos)
+            self.alphabet.active_variables -= set((variable_name, ))
 
-            # new_nfa.perform_pad_closure()
-            return new_nfa
+    def morph_into_trivial(self, is_accepting: bool):
+        if is_accepting:
+            self.states = set(('final',)) 
+            self.final_states = set(self.states)
+            self.initial_states = set(self.states)
+            state_name = 'final'
+        else:
+            self.states = set(('initial',)) 
+            self.final_states = set()
+            self.initial_states = set(self.states)
+            state_name = 'initial'
+        
+        self_loop_symbol = ['*' for v in self.alphabet.variable_names]
+        self.update_transition_fn(state_name, self_loop_symbol, state_name)
+        self.alphabet.active_variables = set()
 
     def perform_pad_closure(self):
         work_queue = list(self.final_states)
@@ -488,6 +490,8 @@ class NFA(Generic[AutomatonState]):
 
 
 class PressburgerAutomaton(NFA[AutomatonState]):
+    def __init__(self, alphabet: LSBF_Alphabet):
+        super().__init__(alphabet=alphabet, automaton_type=AutomatonType.NFA)
     def complement(self):
         alphabet_set = set(self.alphabet.symbols)
         complement_transition_fn: Transitions = collections.defaultdict(dict)
@@ -541,35 +545,5 @@ class PressburgerAutomaton(NFA[AutomatonState]):
 
                     if potential_state not in work_queue and potential_state != current_state:
                         work_queue.append(potential_state)
-
-    def do_projection(self, variable_name: str) -> Optional[PressburgerAutomaton]:
-        resulting_alphabet_var_count = len(self.alphabet.active_variables) - 1
-
-        if resulting_alphabet_var_count == 0:
-            is_sat, word = self.is_sat()  # Check whether the language is nonempty
-            if is_sat:
-                return NFA.trivial_accepting(self.alphabet)
-            else:
-                return NFA.trivial_nonaccepting(self.alphabet)
-
-        else:
-            # Cross out the projected variable
-            new_nfa: NFA[AutomatonState] = PressburgerAutomaton(
-                alphabet=self.alphabet,
-                automaton_type=AutomatonType.NFA,
-            )
-
-            new_nfa.states = set(self.states)
-            new_nfa.initial_states = set(self.initial_states)
-            new_nfa.final_states = set(self.final_states)
-
-            bit_pos = calculate_variable_bit_position(self.alphabet.variable_names, variable_name)
-            if bit_pos is None:
-                raise ValueError(f'Could not find variable_name "{variable_name}" in current alphabet {self.alphabet}')
-            new_nfa.transition_fn = do_projection(self.transition_fn, bit_pos)
-
-            new_nfa.alphabet.active_variables -= set((variable_name, ))
-
-            return new_nfa
 
 DFA = NFA

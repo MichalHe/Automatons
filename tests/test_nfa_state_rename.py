@@ -1,7 +1,7 @@
 import pytest
 from automatons import NFA, AutomatonType
 from relations_structures import Relation
-from pressburger_algorithms import build_nfa_from_inequality
+from pressburger_algorithms import build_pa_from_inequality
 from typing import (
     Any,
     Dict,
@@ -16,7 +16,7 @@ def nfa() -> NFA:
         absolute_part=3,
         operation="<="
     )
-    return build_nfa_from_inequality(ineq)
+    return build_pa_from_inequality(ineq)
 
 
 def test_state_renaming(nfa):

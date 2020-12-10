@@ -1,6 +1,6 @@
 from relations_structures import Relation
 import pytest
-from pressburger_algorithms import build_nfa_from_equality
+from pressburger_algorithms import build_pa_from_equality
 from transitions import iter_transition_fn
 
 
@@ -15,7 +15,7 @@ def simple_equation() -> Relation:
 
 
 def test_build_nfa_from_equality(simple_equation: Relation):
-    nfa = build_nfa_from_equality(simple_equation)
+    nfa = build_pa_from_equality(simple_equation)
 
     assert len(nfa.final_states) == 1
     assert len(nfa.states) == 6

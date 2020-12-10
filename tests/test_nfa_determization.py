@@ -1,6 +1,6 @@
 import pytest
 from relations_structures import Relation
-from pressburger_algorithms import build_nfa_from_inequality
+from pressburger_algorithms import build_pa_from_inequality
 from typing import Union, Dict
 from automatons import (
     AutomatonType,
@@ -17,7 +17,7 @@ def simple_nfa() -> NFA:
         operation='<='
     )
 
-    return build_nfa_from_inequality(ineq)
+    return build_pa_from_inequality(ineq)
 
 
 def translate_transitions(transitions, translate):  # translate is function

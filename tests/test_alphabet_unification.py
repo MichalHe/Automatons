@@ -7,7 +7,7 @@ from transitions import (
 )
 from typing import List, Union
 from relations_structures import Relation
-from pressburger_algorithms import build_nfa_from_inequality
+from pressburger_algorithms import build_pa_from_inequality
 from automatons import NFA
 import pytest
 

@@ -157,9 +157,9 @@ def build_automaton_from_pressburger_relation_ast(relation_root,
     # Encode the logic as data
     building_handlers = {
         SolutionDomain.INTEGERS: {
-            '<':  (ParsingOperation.BUILD_NFA_FROM_SHARP_INEQ, pa.build_nfa_from_sharp_inequality),
-            '<=': (ParsingOperation.BUILD_NFA_FROM_INEQ, pa.build_nfa_from_inequality),
-            '=':  (ParsingOperation.BUILD_NFA_FROM_EQ, pa.build_nfa_from_equality)
+            '<':  (ParsingOperation.BUILD_NFA_FROM_SHARP_INEQ, pa.build_pa_from_sharp_inequality),
+            '<=': (ParsingOperation.BUILD_NFA_FROM_INEQ, pa.build_pa_from_inequality),
+            '=':  (ParsingOperation.BUILD_NFA_FROM_EQ, pa.build_pa_from_equality)
         },
         SolutionDomain.NATURALS: {
             '<':  (ParsingOperation.BUILD_DFA_FROM_SHARP_INEQ, pa.build_dfa_from_sharp_inequality),

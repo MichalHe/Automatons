@@ -13,7 +13,7 @@ def simple_pa() -> fsms.PressburgerAutomaton:
 
     alphabet = fsms.LSBF_Alphabet.from_variable_names(['x'])
 
-    pa = fsms.PressburgerAutomaton(alphabet=alphabet, automaton_type=fsms.AutomatonType.NFA)
+    pa = fsms.PressburgerAutomaton(alphabet=alphabet)
     pa.states = set(states)
     pa.add_final_state('F')
     pa.add_initial_state(0)
@@ -35,7 +35,7 @@ def simple_pa() -> fsms.PressburgerAutomaton:
 def multipath_pa() -> fsms.PressburgerAutomaton:
     states = [0, 1, 2, 3, 'F']
     alphabet = fsms.LSBF_Alphabet.from_variable_names(['x', 'y'])
-    multipath_pa = fsms.PressburgerAutomaton(alphabet=alphabet, automaton_type=fsms.AutomatonType.NFA)
+    multipath_pa = fsms.PressburgerAutomaton(alphabet=alphabet)
 
     multipath_pa.states = set(states)
     multipath_pa.add_initial_state(0)
@@ -64,7 +64,7 @@ def multipath_pa() -> fsms.PressburgerAutomaton:
 def advanced_pa() -> fsms.PressburgerAutomaton:
     states = [-1, 0, 1, 2, 3, 4, 5]
     alphabet = fsms.LSBF_Alphabet.from_variable_names(['x', 'y'])
-    advanced_pa = fsms.PressburgerAutomaton(alphabet=alphabet, automaton_type=fsms.AutomatonType.NFA)
+    advanced_pa = fsms.PressburgerAutomaton(alphabet=alphabet)
 
     advanced_pa.states = set(states)
     advanced_pa.add_initial_state(-1)
@@ -98,7 +98,7 @@ def advanced_pa() -> fsms.PressburgerAutomaton:
 @pytest.fixture()
 def real_pa() -> fsms.PressburgerAutomaton:
     equality = rs.Relation(['x', 'y'], [2, -1], 2, operation='=')
-    return p_algos.build_nfa_from_equality(equality)
+    return p_algos.build_pa_from_equality(equality)
 
 
 def test_simple_finality_propagation(simple_pa: fsms.PressburgerAutomaton):
@@ -180,7 +180,7 @@ def test_real_pressburger_automaton_after_projection(real_pa: fsms.PressburgerAu
 
     assert dest not in real_pa.get_transition_target(origin, symbol)
 
-    real_pa = real_pa.do_projection('y')
+    real_pa.do_projection('y')
     real_pa.do_padding_closure()
 
     assert dest in real_pa.get_transition_target(origin, symbol)
@@ -197,3 +197,5 @@ def test_real_pressburger_automaton_after_projection(real_pa: fsms.PressburgerAu
         if state == 'TRAP':
             continue
         assert real_pa.get_symbols_leading_from_state_to_state(state, 'FINAL') == set()
+
+    print(real_pa.is_sat())

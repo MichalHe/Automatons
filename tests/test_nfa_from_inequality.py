@@ -1,7 +1,7 @@
 import pytest
 
 from relations_structures import Relation
-from pressburger_algorithms import build_nfa_from_inequality
+from pressburger_algorithms import build_pa_from_inequality
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def ineq2() -> Relation:
 
 
 def test_nfa_buildup_simple(ineq):
-    nfa = build_nfa_from_inequality(ineq)
+    nfa = build_pa_from_inequality(ineq)
     assert nfa
 
     expected_states = [2, 1, 0, -1, -2, 'FINAL']
@@ -59,7 +59,7 @@ def test_nfa_buildup_simple(ineq):
 
 
 def test_nfa_buildup(ineq2):
-    nfa = build_nfa_from_inequality(ineq2)
+    nfa = build_pa_from_inequality(ineq2)
     assert nfa
 
     expected_states = [7, 5, 4, 3, 2, 1, 0, -1, -2, 'FINAL']

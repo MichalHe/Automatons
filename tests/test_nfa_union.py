@@ -1,7 +1,7 @@
 import pytest
 from automatons import NFA
 from relations_structures import Relation
-from pressburger_algorithms import build_nfa_from_inequality
+from pressburger_algorithms import build_pa_from_inequality
 from utils import transition_fn_size
 from transitions import iter_transition_fn
 from log import logger
@@ -19,7 +19,7 @@ def nfa1() -> NFA:
         absolute_part=2,
         operation='<='
     )
-    return build_nfa_from_inequality(ineq)
+    return build_pa_from_inequality(ineq)
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def nfa2() -> NFA:
         variable_coeficients=[3, -1],
         absolute_part=3, operation='<='
     )
-    return build_nfa_from_inequality(ineq)
+    return build_pa_from_inequality(ineq)
 
 
 def test_automaton_union(nfa1, nfa2):
