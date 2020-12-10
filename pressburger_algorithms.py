@@ -142,7 +142,7 @@ def build_dfa_from_sharp_inequality(ineq: Relation) -> DFA:
     return dfa
 
 
-def build_pa_from_inequality(ineq: Relation) -> NFA[NFA_AutomatonStateType]:
+def build_pa_from_inequality(ineq: Relation) -> PressburgerAutomaton[NFA_AutomatonStateType]:
     alphabet = LSBF_Alphabet.from_inequation(ineq)
     pa: PressburgerAutomaton[NFA_AutomatonStateType] = PressburgerAutomaton(alphabet=alphabet)
     pa.add_initial_state(ineq.absolute_part)
@@ -172,7 +172,7 @@ def build_pa_from_inequality(ineq: Relation) -> NFA[NFA_AutomatonStateType]:
     return pa
 
 
-def build_pa_from_equality(eq: Relation):
+def build_pa_from_equality(eq: Relation) -> PressburgerAutomaton[NFA_AutomatonStateType]:
     alphabet = LSBF_Alphabet.from_inequation(eq)
 
     pa: PressburgerAutomaton[NFA_AutomatonStateType] = PressburgerAutomaton(alphabet=alphabet)
@@ -244,7 +244,7 @@ def create_and_link_prefinal_state(automaton: NFA,
         automaton.update_transition_fn(prefinal_state, fin_symbol, final_state)
 
 
-def build_pa_from_sharp_inequality(s_ineq: Relation):
+def build_pa_from_sharp_inequality(s_ineq: Relation) -> PressburgerAutomaton[NFA_AutomatonStateType]:
     alphabet = LSBF_Alphabet.from_inequation(s_ineq)
     pa: NFA[NFA_AutomatonStateType] = PressburgerAutomaton(alphabet=alphabet)
     pa.add_initial_state(s_ineq.absolute_part)
