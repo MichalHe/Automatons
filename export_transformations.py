@@ -1,6 +1,22 @@
 from automatons import NFA
 from transitions import iter_transition_fn
 from utils import number_to_bit_tuple
+from enum import Enum
+from typing import Any
+
+
+class QuoteStates(Enum):
+    Always = 'Always'
+    IfComplex = 'IfComplex'
+    Never = 'Never'
+
+
+def is_state_complex(state: Any):
+    if type(state) == list or type(state) == tuple:
+        return True
+    else:
+        return False
+
 
 # VTF format example:
 # @NFA-BDD          # NFAs with transitions in BDD
@@ -42,11 +58,31 @@ def iter_alphabet_symbol(symbol):
         yield tuple(g_symbol)
 
 
-def convert_automaton_to_vtf(automaton: NFA) -> str:
+def convert_automaton_to_vtf(automaton: NFA,
+                             quote_states=QuoteStates.IfComplex) -> str:
     alphabet_size = len(automaton.alphabet.variable_names)
     initial_state = tuple(automaton.initial_states)[0]  # There is only 1 state
-    final_states = ' '.join(map(str, automaton.final_states))
-    states = ' '.join(map(str, automaton.states))
+
+    # State quoting
+    states_complex = is_state_complex(initial_state)
+    add_quote = False
+    if quote_states == QuoteStates.IfComplex:
+        add_quote = True if states_complex else False
+    elif quote_states == QuoteStates.Always:
+        add_quote = True
+
+    final_states = map(str, automaton.final_states)
+    states = map(str, automaton.states)
+    if add_quote:
+        def quote(state_name: str):
+            return f'"{state_name}"'
+
+        final_states = map(quote, final_states)
+        states = map(quote, states)
+        initial_state = quote(str(initial_state))
+
+    final_states = ' '.join(final_states)
+    states = ' '.join(states)
 
     vtf = ''
     vtf += '@NFA\n'
@@ -65,7 +101,10 @@ def convert_automaton_to_vtf(automaton: NFA) -> str:
         # Expand the symbol transition
         for ex_symbol in iter_alphabet_symbol(symbol):
             ex_symbol_str = ''.join(map(str, ex_symbol))
-            vtf += f'{source} {ex_symbol_str} {destination}\n'
+            if add_quote:
+                vtf += f'"{source}" {ex_symbol_str} "{destination}"\n'
+            else:
+                vtf += f'{source} {ex_symbol_str} {destination}\n'
 
     return vtf
 

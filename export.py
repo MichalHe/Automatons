@@ -10,9 +10,11 @@ from parse import (
 from typing import List
 from export_transformations import (
     convert_automaton_to_vtf,
-    convert_automaton_to_rabbit
+    convert_automaton_to_rabbit,
+    QuoteStates
 )
 import os
+import functools
 
 
 @dataclass
@@ -23,15 +25,6 @@ class TracePoint:
 
 def convert_automaton_to_dot(automaton: NFA):
     raise NotImplementedError('Dot format is not supported currently')
-
-
-def convert_automaton_to_output_format(automaton: NFA, output_format: str) -> str:
-    converters = {
-        'vtf': convert_automaton_to_vtf,
-        'rabbit': convert_automaton_to_rabbit,
-        'dot': convert_automaton_to_dot
-    }
-    return converters[output_format](automaton)
 
 
 def get_automaton_trace(assert_tree):
@@ -64,9 +57,23 @@ def get_atomic_evaluations(trace):
 def export_tracepoints(output_dir: str,
                        output_format: str,
                        trace: List[TracePoint],
-                       filename: str = None):
+                       filename: str = None,
+                       quote_states: QuoteStates = None
+                       ):
+
+    converters = {
+        'vtf': convert_automaton_to_vtf,
+        'rabbit': convert_automaton_to_rabbit,
+        'dot': convert_automaton_to_dot
+    }
+
+    converter = converters[output_format]
+    if output_format == 'vtf':
+        print(f'DEBUG: Partial application of quote mode `{quote_states.name}` to vtf converter')
+        converter = functools.partial(converter, quote_states=quote_states)
+
     for i, tracepoint in enumerate(trace):
-        output_repr = convert_automaton_to_output_format(tracepoint.result_automaton, output_format)
+        output_repr = converter(tracepoint.result_automaton)
 
         if filename is not None:
             output_filename = filename
@@ -108,6 +115,13 @@ arg_parser.add_argument(
     dest='output_format'
 )
 
+arg_parser.add_argument(
+    '--vtf-quote-states',
+    choices=['always', 'if-complex', 'never'],
+    default='never',
+    dest='vtf_quote_states'
+)
+
 args = arg_parser.parse_args()
 
 # What is the output format?
@@ -123,23 +137,34 @@ with open(args.smt2_file) as input_file:
     trace = get_automaton_trace(assert_tree)
     print(f'Extracted {len(trace)} trace points.')
 
+    output_filename = None
+    trace_to_export = trace
+
+    quote_options = {
+        'if-complex':   QuoteStates.IfComplex,
+        'never':        QuoteStates.Never,
+        'always':       QuoteStates.Always,
+    }
+
+    quote_states = quote_options[args.vtf_quote_states] if args.output_format == 'vtf' else None
+    print(f'Quote states setting: {quote_states.value}')
+
     if args.trace_mode == 'full':
-        export_tracepoints(
-            args.destination_dir,
-            args.output_format,
-            trace)
+        trace_to_export = trace
+
     elif args.trace_mode == 'atomic':
         atomic_trace_points = get_atomic_evaluations(trace)
-        export_tracepoints(
-            args.destination_dir,
-            args.output_format,
-            atomic_trace_points)
+        trace_to_export = atomic_trace_points
+
     else:
         output_filename = os.path.basename(args.smt2_file)
         output_filename = output_filename.replace('smt2', args.output_format)
-        export_tracepoints(
-            args.destination_dir,
-            args.output_format,
-            [trace[-1]],
-            filename=output_filename
-        )
+        trace_to_export = [trace[-1]]
+
+    export_tracepoints(
+        args.destination_dir,
+        args.output_format,
+        trace_to_export,
+        filename=output_filename,
+        quote_states=quote_states
+    )
