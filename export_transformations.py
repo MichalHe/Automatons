@@ -1,8 +1,9 @@
-from automatons import NFA
+from automatons import NFA, LSBF_Alphabet
 from transitions import iter_transition_fn
 from utils import number_to_bit_tuple
 from enum import Enum
-from typing import Any
+from typing import Any, List, Set
+import re
 
 
 class QuoteStates(Enum):
@@ -109,7 +110,7 @@ def convert_automaton_to_vtf(automaton: NFA,
     return vtf
 
 
-def convert_automaton_to_rabbit(nfa: NFA) -> str:
+def convert_automaton_to_rabit(nfa: NFA) -> str:
     # Rabbit does not support '-' in the BA format, rename states
     _, renamed_nfa = nfa.rename_states()
 
@@ -133,3 +134,88 @@ def convert_automaton_to_rabbit(nfa: NFA) -> str:
             rabbit_fmt += f'[{fstate}]'
 
     return rabbit_fmt
+
+
+def read_nfa_from_rabit(filepath: str) -> str:  # NOQA
+    '''Reads the NFA from a file in the rabbit format'''
+    # Rabit (BA) file example:
+    # [1]
+    # a,[1]->[2]
+    # b,[2]->[1]
+    # c,[1]->[3]
+    # [2]
+    # [3]
+    initial_states: List[str] = list()
+    transitions: List[List[Any]] = list()
+    final_states: List[str] = list()
+    state = 0
+    state_re = re.compile(r'\[(.+)\]')
+    transition_re = re.compile(r'(.+),\[(.+)\]->\[(.+)\]')
+    with open(filepath, 'r') as input_file:
+        for line in input_file:
+            if state == 0 and '->' in line:
+                state = 1
+
+            if state == 1 and '->' not in line:
+                state = 2
+
+            if state == 0:
+                match = state_re.match(line)
+                if match is None:
+                    raise ValueError('Cannot parse BA line: {line}')
+                initial_states.append(match.group(1))
+            elif state == 1:
+                match = transition_re.match(line)
+                if match is None:
+                    raise ValueError('Cannot parse BA line: {line}')
+                symbol = match.group(1)
+                origin = match.group(2)
+                dest = match.group(3)
+                transitions.append([origin, symbol, dest])
+            else:
+                match = state_re.match(line)
+                if match is None:
+                    raise ValueError('Cannot parse BA line: {line}')
+                final_states.append(match.group(1))
+
+    # Check the lsbf alphabet
+    purged_transitions: List[List[Any]] = []
+    states: Set = set()
+    alphabet_length = None
+    for origin, symbol, dest in transitions:
+        symbol = symbol.strip()
+        assert symbol[0] == '(', f'Symbol should be a LSBF bit tuple: {symbol}'
+        assert symbol[-1] == ')', f'Symbol should be a LSBF bit tuple: {symbol}'
+
+        symbol_body = symbol[1:-1]
+        symbol_body = symbol_body.replace(' ', '')
+        bits = symbol_body.split(',')
+        assert bits, 'LSBF Symbol cannot have no bits'
+
+        processed_symbol: List = []
+        for bit in bits:
+            assert bit in ['0', '1', '*'], f'LSBF bit can be only one of: 0/1/*, current `{bit}`'
+            if bit == '0' or bit == '1':
+                processed_symbol.append(int(bit))
+            else:
+                processed_symbol.append(bit)
+
+        if alphabet_length is None:
+            alphabet_length = len(processed_symbol)
+
+        if alphabet_length is not None:
+            assert len(processed_symbol) == alphabet_length, 'All LSBF symbols must have same length'
+
+        purged_transitions.append((origin, iter_transition_fn, dest))
+        states.add(origin)
+        states.add(dest)
+
+    states.update(initial_states)
+    states.update(final_states)
+    var_names = tuple(map(chr, range(ord('a'), ord('a') + alphabet_length)))
+    alphabet = LSBF_Alphabet.from_variable_names(var_names)
+    nfa = NFA(alphabet, initial_states=set(initial_states), states=states, final_states=set(final_states))
+
+    for t in purged_transitions:
+        nfa.update_transition_fn(t[0], t[1], t[2])
+    return nfa
